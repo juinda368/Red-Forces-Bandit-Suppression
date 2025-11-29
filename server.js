@@ -22,8 +22,15 @@ io.on('connection', (socket) => {
     console.log('用户连接:', socket.id);
     
     // 创建房间
-    socket.on('createRoom', (faction) => {
-        const roomId = generateRoomId();
+    socket.on('createRoom', ({ faction, customRoomId }) => {
+        let roomId = customRoomId ? customRoomId.toUpperCase() : generateRoomId();
+        
+        // 检查房间是否已存在
+        if (rooms.has(roomId)) {
+            socket.emit('error', '房间号已存在，请换一个');
+            return;
+        }
+        
         rooms.set(roomId, {
             id: roomId,
             players: [{ id: socket.id, faction, ready: false }],
@@ -187,33 +194,82 @@ io.on('connection', (socket) => {
         });
     });
     
-    // 重新开始
-    socket.on('requestRestart', () => {
+    // 请求求和
+    socket.on('requestDraw', () => {
+        const room = rooms.get(socket.roomId);
+        if (!room || !room.gameState || room.gameState.gameOver) return;
+        
+        room.drawRequest = socket.id;
+        socket.to(socket.roomId).emit('drawRequested', socket.faction);
+    });
+    
+    // 响应求和
+    socket.on('respondDraw', (accepted) => {
+        const room = rooms.get(socket.roomId);
+        if (!room || !room.drawRequest) return;
+        
+        if (accepted) {
+            room.gameState.gameOver = true;
+            room.gameState.winner = 'draw';
+            io.to(socket.roomId).emit('gameUpdate', room.gameState);
+            io.to(socket.roomId).emit('gameOver', 'draw');
+        } else {
+            io.to(socket.roomId).emit('drawRejected');
+        }
+        room.drawRequest = null;
+    });
+    
+    // 请求再来一局
+    socket.on('requestRematch', () => {
         const room = rooms.get(socket.roomId);
         if (!room) return;
         
-        room.restartRequest = socket.id;
-        socket.to(socket.roomId).emit('restartRequested', socket.faction);
+        room.rematchRequest = socket.id;
+        socket.to(socket.roomId).emit('rematchRequested', socket.faction);
     });
     
-    // 响应重新开始
-    socket.on('respondRestart', (accepted) => {
+    // 响应再来一局
+    socket.on('respondRematch', (accepted) => {
         const room = rooms.get(socket.roomId);
         if (!room) return;
         
         if (accepted) {
-            // 重置房间状态，让玩家重新选择阵营
-            room.players.forEach(p => {
-                p.ready = false;
-                p.faction = null;
-            });
+            // 保持原阵营，重置准备状态
+            room.players.forEach(p => p.ready = false);
             room.gameState = null;
             room.history = [];
-            io.to(socket.roomId).emit('restartAccepted');
+            io.to(socket.roomId).emit('rematchAccepted');
         } else {
-            io.to(socket.roomId).emit('restartRejected');
+            io.to(socket.roomId).emit('rematchRejected');
         }
-        room.restartRequest = null;
+        room.rematchRequest = null;
+    });
+    
+    // 请求交换阵营
+    socket.on('requestSwapFaction', () => {
+        const room = rooms.get(socket.roomId);
+        if (!room) return;
+        
+        room.swapRequest = socket.id;
+        socket.to(socket.roomId).emit('swapRequested', socket.faction);
+    });
+    
+    // 响应交换阵营
+    socket.on('respondSwap', (accepted) => {
+        const room = rooms.get(socket.roomId);
+        if (!room || !room.swapRequest) return;
+        
+        if (accepted) {
+            // 交换双方阵营
+            room.players.forEach(p => {
+                p.faction = p.faction === 'red' ? 'bandit' : 'red';
+                p.ready = false;
+            });
+            io.to(socket.roomId).emit('swapAccepted');
+        } else {
+            io.to(socket.roomId).emit('swapRejected');
+        }
+        room.swapRequest = null;
     });
     
     // 离开房间

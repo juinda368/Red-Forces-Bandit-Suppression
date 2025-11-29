@@ -77,7 +77,8 @@ document.getElementById('roomIdInput')?.addEventListener('input', updateFactionU
 
 function createRoom() {
     if (!selectedFaction) return;
-    socket.emit('createRoom', selectedFaction);
+    const customRoomId = document.getElementById('customRoomId')?.value.trim();
+    socket.emit('createRoom', { faction: selectedFaction, customRoomId });
 }
 
 function joinRoom() {
@@ -181,9 +182,9 @@ document.querySelectorAll('.setup-pos').forEach(pos => {
 });
 
 function useDefaultSetup() {
-    hideOverlay('setupPanel');
-    socket.emit('playerReady', [20, 22, 24]);
-    document.getElementById('status').textContent = '等待对手...';
+    // 选中1、3、5位置（20, 22, 24）
+    setupPositions = [20, 22, 24];
+    updateSetupUI();
 }
 
 function confirmSetup() {
@@ -226,7 +227,12 @@ socket.on('gameOver', (winner) => {
     const title = document.getElementById('victoryTitle');
     const sub = document.getElementById('victorySub');
     
-    if (winner === 'red') {
+    if (winner === 'draw') {
+        icon.textContent = '🤝';
+        title.textContent = '和棋！';
+        title.className = 'victory-title';
+        sub.textContent = '双方握手言和';
+    } else if (winner === 'red') {
         icon.textContent = '🎉';
         title.textContent = '红军胜利！';
         title.className = 'victory-title red-win';
@@ -455,41 +461,98 @@ socket.on('undoRejected', (msg) => {
 });
 
 
-// 重新开始
-function requestRestart() {
-    hideOverlay('victoryOverlay');
-    socket.emit('requestRestart');
-    showToast('已发送重新开始请求');
+// 求和
+function requestDraw() {
+    socket.emit('requestDraw');
+    showToast('已发送求和请求');
 }
 
-socket.on('restartRequested', (faction) => {
-    hideOverlay('victoryOverlay');
-    showOverlay('restartRequestOverlay');
+socket.on('drawRequested', (faction) => {
+    showOverlay('drawRequestOverlay');
 });
 
-function respondRestart(accepted) {
-    hideOverlay('restartRequestOverlay');
-    socket.emit('respondRestart', accepted);
+function respondDraw(accepted) {
+    hideOverlay('drawRequestOverlay');
+    socket.emit('respondDraw', accepted);
 }
 
-socket.on('restartAccepted', () => {
-    showOverlay('factionSelectOverlay');
-    addChatMessage('system', '重新选择阵营');
+socket.on('drawRejected', () => {
+    showToast('对方拒绝求和');
 });
 
-socket.on('restartRejected', () => {
-    showToast('对方拒绝重新开始');
+// 再来一局
+function requestRematch() {
+    hideOverlay('victoryOverlay');
+    socket.emit('requestRematch');
+    showToast('已发送再来一局请求');
+}
+
+socket.on('rematchRequested', (faction) => {
+    hideOverlay('victoryOverlay');
+    showOverlay('rematchRequestOverlay');
 });
 
-function selectNewFaction(faction) {
-    hideOverlay('factionSelectOverlay');
-    myFaction = faction;
+function respondRematch(accepted) {
+    hideOverlay('rematchRequestOverlay');
+    socket.emit('respondRematch', accepted);
+}
+
+socket.on('rematchAccepted', () => {
+    // 保持原阵营，红军方重新布阵
+    if (myFaction === 'red') {
+        setupPositions = [];
+        updateSetupUI();
+        showOverlay('setupPanel');
+    } else {
+        socket.emit('playerReady', null);
+        document.getElementById('status').textContent = '等待红军布阵...';
+    }
+    addChatMessage('system', '再来一局！');
+});
+
+socket.on('rematchRejected', () => {
+    showToast('对方拒绝再来一局');
+});
+
+// 交换阵营
+function requestSwapFaction() {
+    socket.emit('requestSwapFaction');
+    showToast('已发送交换阵营请求');
+}
+
+socket.on('swapRequested', (faction) => {
+    showOverlay('swapRequestOverlay');
+});
+
+function respondSwap(accepted) {
+    hideOverlay('swapRequestOverlay');
+    socket.emit('respondSwap', accepted);
+}
+
+socket.on('swapAccepted', () => {
+    // 交换阵营
+    myFaction = myFaction === 'red' ? 'bandit' : 'red';
     const factionDisplay = document.getElementById('myFactionDisplay');
     factionDisplay.textContent = myFaction === 'red' ? '⭐ 红军方' : '💀 土匪方';
     factionDisplay.className = 'my-faction ' + myFaction;
     
-    socket.emit('joinRoom', { roomId, faction });
-}
+    hideOverlay('setupPanel');
+    
+    // 新红军方布阵
+    if (myFaction === 'red') {
+        setupPositions = [];
+        updateSetupUI();
+        showOverlay('setupPanel');
+    } else {
+        socket.emit('playerReady', null);
+        document.getElementById('status').textContent = '等待红军布阵...';
+    }
+    addChatMessage('system', '阵营已交换！');
+});
+
+socket.on('swapRejected', () => {
+    showToast('对方拒绝交换阵营');
+});
 
 // 聊天
 function sendChat() {

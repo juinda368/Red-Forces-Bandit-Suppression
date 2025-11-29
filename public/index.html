@@ -66,7 +66,11 @@
         </div>
         
         <div id="createRoomPanel" class="hidden">
-            <h2>选择阵营</h2>
+            <h2>创建房间</h2>
+            <div class="input-group">
+                <input type="text" id="customRoomId" placeholder="自定义房间号（可选）" maxlength="10">
+            </div>
+            <h3 style="margin:15px 0 10px;font-size:14px;color:#a0a0a0;">选择阵营</h3>
             <div class="faction-select">
                 <div class="faction-btn" data-faction="red" onclick="selectFaction('red')">
                     <div class="icon">⭐</div>
@@ -130,7 +134,7 @@
                 </div>
                 <div class="controls">
                     <button onclick="requestUndo()" id="undoBtn">悔棋</button>
-                    <button onclick="requestRestart()" id="restartBtn">重新开始</button>
+                    <button onclick="requestDraw()" id="drawBtn">求和</button>
                     <button onclick="leaveRoom()">退出房间</button>
                 </div>
             </div>
@@ -172,6 +176,7 @@
             <p id="setupHint">已选: 0/3</p>
             <div class="modal-btns">
                 <button class="btn-secondary" onclick="useDefaultSetup()">使用默认</button>
+                <button onclick="requestSwapFaction()" id="swapFactionBtn">交换阵营</button>
                 <button onclick="confirmSetup()" id="confirmSetupBtn" disabled>确认布阵</button>
             </div>
         </div>
@@ -184,7 +189,7 @@
             <div class="victory-title" id="victoryTitle">红军胜利！</div>
             <div class="victory-sub" id="victorySub"></div>
             <div class="modal-btns">
-                <button onclick="requestRestart()">再来一局</button>
+                <button onclick="requestRematch()">再来一局</button>
                 <button class="btn-secondary" onclick="leaveRoom()">退出房间</button>
             </div>
         </div>
@@ -202,31 +207,38 @@
         </div>
     </div>
 
-    <!-- 重新开始请求弹窗 -->
-    <div class="overlay" id="restartRequestOverlay">
+    <!-- 求和请求弹窗 -->
+    <div class="overlay" id="drawRequestOverlay">
         <div class="modal">
-            <h2>🔄 重新开始</h2>
-            <p>对方请求重新开始，是否同意？</p>
+            <h2>🤝 求和请求</h2>
+            <p>对方请求和棋，是否同意？</p>
             <div class="modal-btns">
-                <button onclick="respondRestart(true)">同意</button>
-                <button class="btn-secondary" onclick="respondRestart(false)">拒绝</button>
+                <button onclick="respondDraw(true)">同意</button>
+                <button class="btn-secondary" onclick="respondDraw(false)">拒绝</button>
             </div>
         </div>
     </div>
 
-    <!-- 阵营选择弹窗（重新开始时） -->
-    <div class="overlay" id="factionSelectOverlay">
+    <!-- 再来一局请求弹窗 -->
+    <div class="overlay" id="rematchRequestOverlay">
         <div class="modal">
-            <h2>选择阵营</h2>
-            <div class="faction-select">
-                <div class="faction-btn" data-faction="red" onclick="selectNewFaction('red')">
-                    <div class="icon">⭐</div>
-                    <div class="name">红军方</div>
-                </div>
-                <div class="faction-btn" data-faction="bandit" onclick="selectNewFaction('bandit')">
-                    <div class="icon">💀</div>
-                    <div class="name">土匪方</div>
-                </div>
+            <h2>🔄 再来一局</h2>
+            <p>对方请求再来一局，是否同意？</p>
+            <div class="modal-btns">
+                <button onclick="respondRematch(true)">同意</button>
+                <button class="btn-secondary" onclick="respondRematch(false)">拒绝</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 交换阵营请求弹窗 -->
+    <div class="overlay" id="swapRequestOverlay">
+        <div class="modal">
+            <h2>🔄 交换阵营</h2>
+            <p>对方请求交换阵营，是否同意？</p>
+            <div class="modal-btns">
+                <button onclick="respondSwap(true)">同意</button>
+                <button class="btn-secondary" onclick="respondSwap(false)">拒绝</button>
             </div>
         </div>
     </div>
