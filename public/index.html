@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>红军土匪棋 - 联机对战</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            color: #fff;
+        }
+        h1 { margin-bottom: 10px; color: #e94560; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); }
+        
+        /* 大厅界面 */
+        .lobby { text-align: center; max-width: 400px; }
+        .lobby h2 { margin: 20px 0; color: #fff; }
+        .lobby-btn {
+            display: block; width: 100%; padding: 15px; margin: 10px 0;
+            font-size: 16px; border: none; border-radius: 10px;
+            cursor: pointer; transition: all 0.2s;
+        }
+        .btn-red { background: linear-gradient(145deg, #ff6b6b, #c0392b); color: #fff; }
+        .btn-gray { background: linear-gradient(145deg, #666, #444); color: #fff; }
+        .btn-red:hover, .btn-gray:hover { transform: translateY(-2px); opacity: 0.9; }
+        .input-group { margin: 15px 0; }
+        .input-group input {
+            width: 100%; padding: 12px; font-size: 16px;
+            border: 2px solid #444; border-radius: 8px;
+            background: #2d2d44; color: #fff; text-align: center;
+        }
+        .input-group input::placeholder { color: #888; }
+        .faction-select { display: flex; gap: 10px; margin: 15px 0; }
+        .faction-btn {
+            flex: 1; padding: 20px 10px; border: 3px solid #444;
+            border-radius: 10px; cursor: pointer; transition: all 0.2s;
+            background: #2d2d44; text-align: center;
+        }
+        .faction-btn:hover { border-color: #666; }
+        .faction-btn.selected { border-color: #e94560; background: rgba(233,69,96,0.2); }
+        .faction-btn .icon { font-size: 32px; }
+        .faction-btn .name { margin-top: 5px; font-size: 14px; }
+        .room-info { background: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px; margin: 15px 0; }
+        .room-id { font-size: 24px; font-weight: bold; color: #e94560; letter-spacing: 3px; }
+        .waiting { color: #a0a0a0; margin-top: 10px; }
+        .hidden { display: none !important; }
+</style>
+</head>
+<body>
+    <!-- 大厅界面 -->
+    <div id="lobbyScreen" class="lobby">
+        <h1>🎮 红军土匪棋</h1>
+        <p style="color:#a0a0a0;margin-bottom:20px;">联机对战版</p>
+        
+        <div id="mainMenu">
+            <button class="lobby-btn btn-red" onclick="showCreateRoom()">创建房间</button>
+            <button class="lobby-btn btn-gray" onclick="showJoinRoom()">加入房间</button>
+        </div>
+        
+        <div id="createRoomPanel" class="hidden">
+            <h2>选择阵营</h2>
+            <div class="faction-select">
+                <div class="faction-btn" data-faction="red" onclick="selectFaction('red')">
+                    <div class="icon">⭐</div>
+                    <div class="name">红军方</div>
+                </div>
+                <div class="faction-btn" data-faction="bandit" onclick="selectFaction('bandit')">
+                    <div class="icon">💀</div>
+                    <div class="name">土匪方</div>
+                </div>
+            </div>
+            <button class="lobby-btn btn-red" onclick="createRoom()" id="createBtn" disabled>创建房间</button>
+            <button class="lobby-btn btn-gray" onclick="backToMenu()">返回</button>
+        </div>
+
+        <div id="joinRoomPanel" class="hidden">
+            <h2>加入房间</h2>
+            <div class="input-group">
+                <input type="text" id="roomIdInput" placeholder="输入房间号" maxlength="6">
+            </div>
+            <h3 style="margin:15px 0 10px;font-size:14px;color:#a0a0a0;">选择阵营</h3>
+            <div class="faction-select">
+                <div class="faction-btn" data-faction="red" onclick="selectFaction('red')">
+                    <div class="icon">⭐</div>
+                    <div class="name">红军方</div>
+                </div>
+                <div class="faction-btn" data-faction="bandit" onclick="selectFaction('bandit')">
+                    <div class="icon">💀</div>
+                    <div class="name">土匪方</div>
+                </div>
+            </div>
+            <button class="lobby-btn btn-red" onclick="joinRoom()" id="joinBtn" disabled>加入房间</button>
+            <button class="lobby-btn btn-gray" onclick="backToMenu()">返回</button>
+        </div>
+        
+        <div id="waitingPanel" class="hidden">
+            <div class="room-info">
+                <p>房间号</p>
+                <div class="room-id" id="displayRoomId">------</div>
+            </div>
+            <p class="waiting">⏳ 等待对手加入...</p>
+            <button class="lobby-btn btn-gray" onclick="leaveRoom()">取消</button>
+        </div>
+    </div>
+
+    <!-- 游戏界面 -->
+    <div id="gameScreen" class="hidden">
+        <div class="game-header">
+            <div class="room-badge">房间: <span id="gameRoomId"></span></div>
+            <div class="my-faction" id="myFactionDisplay"></div>
+        </div>
+        
+        <div class="game-main">
+            <div class="game-left">
+                <div class="turn-indicator">
+                    <div class="turn-icon red-icon" id="redIcon">⭐</div>
+                    <div class="status" id="status">等待开始</div>
+                    <div class="turn-icon bandit-icon" id="banditIcon">💀</div>
+                </div>
+                <div class="board" id="board">
+                    <canvas id="boardCanvas" width="320" height="320"></canvas>
+                </div>
+                <div class="controls">
+                    <button onclick="requestUndo()" id="undoBtn">悔棋</button>
+                    <button onclick="requestRestart()" id="restartBtn">重新开始</button>
+                    <button onclick="leaveRoom()">退出房间</button>
+                </div>
+            </div>
+            
+            <div class="game-right">
+                <div class="chat-box">
+                    <div class="chat-header">💬 聊天</div>
+                    <div class="chat-messages" id="chatMessages"></div>
+                    <div class="emoji-bar">
+                        <span class="emoji-btn" onclick="sendEmoji('👍')">👍</span>
+                        <span class="emoji-btn" onclick="sendEmoji('😄')">😄</span>
+                        <span class="emoji-btn" onclick="sendEmoji('😢')">😢</span>
+                        <span class="emoji-btn" onclick="sendEmoji('😠')">😠</span>
+                        <span class="emoji-btn" onclick="sendEmoji('🎉')">🎉</span>
+                        <span class="emoji-btn" onclick="sendEmoji('👏')">👏</span>
+                    </div>
+                    <div class="chat-input">
+                        <input type="text" id="chatInput" placeholder="输入消息..." maxlength="50">
+                        <button onclick="sendChat()">发送</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- 布局选择面板 -->
+    <div class="overlay" id="setupPanel">
+        <div class="modal">
+            <h2>🎯 红军布阵</h2>
+            <p>点击选择3个位置放置红军棋子</p>
+            <div class="setup-positions" id="setupPositions">
+                <div class="setup-pos" data-pos="20">1</div>
+                <div class="setup-pos" data-pos="21">2</div>
+                <div class="setup-pos" data-pos="22">3</div>
+                <div class="setup-pos" data-pos="23">4</div>
+                <div class="setup-pos" data-pos="24">5</div>
+            </div>
+            <p id="setupHint">已选: 0/3</p>
+            <div class="modal-btns">
+                <button class="btn-secondary" onclick="useDefaultSetup()">使用默认</button>
+                <button onclick="confirmSetup()" id="confirmSetupBtn" disabled>确认布阵</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 胜利画面 -->
+    <div class="overlay" id="victoryOverlay">
+        <div class="modal victory-modal">
+            <div class="victory-icon" id="victoryIcon">🎉</div>
+            <div class="victory-title" id="victoryTitle">红军胜利！</div>
+            <div class="victory-sub" id="victorySub"></div>
+            <div class="modal-btns">
+                <button onclick="requestRestart()">再来一局</button>
+                <button class="btn-secondary" onclick="leaveRoom()">退出房间</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 悔棋请求弹窗 -->
+    <div class="overlay" id="undoRequestOverlay">
+        <div class="modal">
+            <h2>🤔 悔棋请求</h2>
+            <p>对方请求悔棋，是否同意？</p>
+            <div class="modal-btns">
+                <button onclick="respondUndo(true)">同意</button>
+                <button class="btn-secondary" onclick="respondUndo(false)">拒绝</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 重新开始请求弹窗 -->
+    <div class="overlay" id="restartRequestOverlay">
+        <div class="modal">
+            <h2>🔄 重新开始</h2>
+            <p>对方请求重新开始，是否同意？</p>
+            <div class="modal-btns">
+                <button onclick="respondRestart(true)">同意</button>
+                <button class="btn-secondary" onclick="respondRestart(false)">拒绝</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 阵营选择弹窗（重新开始时） -->
+    <div class="overlay" id="factionSelectOverlay">
+        <div class="modal">
+            <h2>选择阵营</h2>
+            <div class="faction-select">
+                <div class="faction-btn" data-faction="red" onclick="selectNewFaction('red')">
+                    <div class="icon">⭐</div>
+                    <div class="name">红军方</div>
+                </div>
+                <div class="faction-btn" data-faction="bandit" onclick="selectNewFaction('bandit')">
+                    <div class="icon">💀</div>
+                    <div class="name">土匪方</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 提示消息 -->
+    <div class="toast" id="toast"></div>
+
+    <script src="client.js"></script>
+</body>
+</html>
