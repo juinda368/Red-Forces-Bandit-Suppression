@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "exa": {
+      "command": "node",
+      "args": [
+        "node_modules/exa-mcp-server/.smithery/stdio/index.cjs"
+      ],
+      "env": {
+        "EXA_API_KEY": "32b5acf7-5293-479f-a9ae-2a94f70a2912"
+      },
+      "disabled": false,
+      "autoApprove": [],
+      "disabledTools": []
+    }
+  }
+}

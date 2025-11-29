@@ -206,7 +206,6 @@ socket.on('gameStart', (state) => {
     validMoves = [];
     updateStatus();
     renderPieces();
-    addChatMessage('system', '游戏开始！');
 });
 
 socket.on('gameUpdate', (state) => {
@@ -453,11 +452,14 @@ socket.on('undoAccepted', (state) => {
     updateStatus();
     renderPieces();
     showToast('悔棋成功');
-    addChatMessage('system', '悔棋成功');
 });
 
 socket.on('undoRejected', (msg) => {
-    showToast(msg || '悔棋被拒绝');
+    showToast(msg || '对方拒绝悔棋');
+});
+
+socket.on('undoRejectedByMe', () => {
+    showToast('已拒绝对方悔棋');
 });
 
 
@@ -482,7 +484,6 @@ socket.on('drawRejected', () => {
 
 // 再来一局
 function requestRematch() {
-    hideOverlay('victoryOverlay');
     socket.emit('requestRematch');
     showToast('已发送再来一局请求');
 }
@@ -497,7 +498,8 @@ function respondRematch(accepted) {
     socket.emit('respondRematch', accepted);
 }
 
-socket.on('rematchAccepted', () => {
+socket.on('rematchAccepted', (data) => {
+    hideOverlay('victoryOverlay');
     // 保持原阵营，红军方重新布阵
     if (myFaction === 'red') {
         setupPositions = [];
@@ -507,7 +509,6 @@ socket.on('rematchAccepted', () => {
         socket.emit('playerReady', null);
         document.getElementById('status').textContent = '等待红军布阵...';
     }
-    addChatMessage('system', '再来一局！');
 });
 
 socket.on('rematchRejected', () => {
@@ -547,7 +548,7 @@ socket.on('swapAccepted', () => {
         socket.emit('playerReady', null);
         document.getElementById('status').textContent = '等待红军布阵...';
     }
-    addChatMessage('system', '阵营已交换！');
+    showToast('阵营已交换');
 });
 
 socket.on('swapRejected', () => {
@@ -568,22 +569,21 @@ document.getElementById('chatInput')?.addEventListener('keypress', (e) => {
 });
 
 socket.on('chatMessage', (data) => {
-    addChatMessage(data.faction, data.message, data.time);
+    const isMe = data.faction === myFaction;
+    addChatMessage(isMe ? 'me' : 'opponent', data.message, data.time);
 });
 
-function addChatMessage(faction, message, time) {
+function addChatMessage(who, message, time) {
     const container = document.getElementById('chatMessages');
     if (!container) return;
     
     const msgEl = document.createElement('div');
-    msgEl.className = 'chat-msg ' + faction;
+    msgEl.className = 'chat-msg ' + who;
     
-    if (faction !== 'system') {
-        const sender = document.createElement('div');
-        sender.className = 'sender';
-        sender.textContent = (faction === 'red' ? '红军' : '土匪') + (time ? ' ' + time : '');
-        msgEl.appendChild(sender);
-    }
+    const sender = document.createElement('div');
+    sender.className = 'sender';
+    sender.textContent = (who === 'me' ? '我' : '对方') + (time ? ' ' + time : '');
+    msgEl.appendChild(sender);
     
     const text = document.createElement('div');
     text.textContent = message;
@@ -599,15 +599,16 @@ function sendEmoji(emoji) {
 }
 
 socket.on('emojiReceived', (data) => {
-    showFloatingEmoji(data.emoji, data.faction);
-    addChatMessage(data.faction, data.emoji);
+    const isMe = data.faction === myFaction;
+    showFloatingEmoji(data.emoji, isMe ? 'me' : 'opponent');
+    addChatMessage(isMe ? 'me' : 'opponent', data.emoji);
 });
 
-function showFloatingEmoji(emoji, faction) {
+function showFloatingEmoji(emoji, who) {
     const el = document.createElement('div');
     el.className = 'emoji-float';
     el.textContent = emoji;
-    el.style.left = faction === 'red' ? '30%' : '70%';
+    el.style.left = who === 'me' ? '70%' : '30%';
     el.style.top = '50%';
     document.body.appendChild(el);
     setTimeout(() => el.remove(), 2000);

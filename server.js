@@ -159,6 +159,12 @@ io.on('connection', (socket) => {
             return;
         }
         
+        // 只能悔自己的棋：当前回合是对方的，说明上一步是自己走的
+        if (room.gameState && room.gameState.turn === socket.faction) {
+            socket.emit('undoRejected', '只能悔自己的棋');
+            return;
+        }
+        
         room.undoRequest = socket.id;
         socket.to(socket.roomId).emit('undoRequested', socket.faction);
     });
@@ -168,11 +174,15 @@ io.on('connection', (socket) => {
         const room = rooms.get(socket.roomId);
         if (!room || !room.undoRequest) return;
         
+        const requesterId = room.undoRequest;
         if (accepted && room.history.length > 0) {
             room.gameState = room.history.pop();
             io.to(socket.roomId).emit('undoAccepted', room.gameState);
         } else {
-            io.to(socket.roomId).emit('undoRejected', '对方拒绝悔棋');
+            // 只通知请求方被拒绝
+            io.to(requesterId).emit('undoRejected', '对方拒绝悔棋');
+            // 通知拒绝方已拒绝
+            socket.emit('undoRejectedByMe');
         }
         room.undoRequest = null;
     });
@@ -231,16 +241,18 @@ io.on('connection', (socket) => {
     // 响应再来一局
     socket.on('respondRematch', (accepted) => {
         const room = rooms.get(socket.roomId);
-        if (!room) return;
+        if (!room || !room.rematchRequest) return;
         
         if (accepted) {
             // 保持原阵营，重置准备状态
             room.players.forEach(p => p.ready = false);
             room.gameState = null;
             room.history = [];
-            io.to(socket.roomId).emit('rematchAccepted');
+            // 分别通知请求方和响应方
+            const requesterId = room.rematchRequest;
+            io.to(socket.roomId).emit('rematchAccepted', { requesterId });
         } else {
-            io.to(socket.roomId).emit('rematchRejected');
+            io.to(room.rematchRequest).emit('rematchRejected');
         }
         room.rematchRequest = null;
     });
@@ -265,6 +277,16 @@ io.on('connection', (socket) => {
                 p.faction = p.faction === 'red' ? 'bandit' : 'red';
                 p.ready = false;
             });
+            // 更新所有socket的faction
+            const sockets = io.sockets.adapter.rooms.get(socket.roomId);
+            if (sockets) {
+                sockets.forEach(socketId => {
+                    const s = io.sockets.sockets.get(socketId);
+                    if (s) {
+                        s.faction = s.faction === 'red' ? 'bandit' : 'red';
+                    }
+                });
+            }
             io.to(socket.roomId).emit('swapAccepted');
         } else {
             io.to(socket.roomId).emit('swapRejected');
