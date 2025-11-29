@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>红军土匪棋</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            color: #fff;
+            position: relative;
+        }
+        h1 {
+            margin-bottom: 10px;
+            color: #e94560;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+        .info {
+            margin-bottom: 15px;
+            text-align: center;
+            max-width: 500px;
+            line-height: 1.6;
+            color: #a0a0a0;
+            font-size: 14px;
+        }
+        /* 规则展开栏 */
+        .rules-toggle {
+            position: fixed;
+            top: 15px;
+            left: 15px;
+            z-index: 100;
+        }
+        .rules-btn {
+            background: rgba(233,69,96,0.9);
+            border: none;
+            color: #fff;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .rules-btn:hover { background: #ff6b6b; }
+        .rules-content {
+            display: none;
+            position: absolute;
+            top: 40px;
+            left: 0;
+            background: rgba(45,45,68,0.95);
+            padding: 12px;
+            border-radius: 8px;
+            width: 280px;
+            font-size: 12px;
+            line-height: 1.6;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+        }
+        .rules-toggle:hover .rules-content { display: block; }
+        .rules-content p { margin: 4px 0; }
+        .rules-content b { color: #e94560; }
+        .game-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+        }
+        /* 回合指示器 */
+        .turn-indicator {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .turn-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            transition: all 0.3s;
+            opacity: 0.3;
+            filter: grayscale(80%);
+        }
+        .turn-icon.active {
+            opacity: 1;
+            filter: grayscale(0%);
+            transform: scale(1.1);
+            animation: iconPulse 1s infinite;
+        }
+        @keyframes iconPulse {
+            0%, 100% { box-shadow: 0 0 10px currentColor; transform: scale(1.1); }
+            50% { box-shadow: 0 0 25px currentColor; transform: scale(1.15); }
+        }
+        .red-icon {
+            background: linear-gradient(145deg, #ffb3b3, #ff6b6b);
+            border: 3px solid #e74c3c;
+            color: #c0392b;
+        }
+        .red-icon.active { 
+            box-shadow: 0 0 15px #e74c3c;
+            animation: redPulse 1s infinite;
+        }
+        @keyframes redPulse {
+            0%, 100% { box-shadow: 0 0 10px #e74c3c; transform: scale(1.1); }
+            50% { box-shadow: 0 0 25px #ff6b6b; transform: scale(1.15); }
+        }
+        .bandit-icon {
+            background: linear-gradient(145deg, #888, #555);
+            border: 3px solid #666;
+            color: #333;
+        }
+        .bandit-icon.active { 
+            box-shadow: 0 0 15px #888;
+            animation: banditPulse 1s infinite;
+        }
+        @keyframes banditPulse {
+            0%, 100% { box-shadow: 0 0 10px #666; transform: scale(1.1); }
+            50% { box-shadow: 0 0 25px #aaa; transform: scale(1.15); }
+        }
+        .status {
+            font-size: 16px;
+            padding: 8px 16px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 8px;
+            min-width: 160px;
+            text-align: center;
+        }
+        .board {
+            position: relative;
+            width: 320px;
+            height: 320px;
+            background: #2d2d44;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        .board canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+        .piece {
+            position: absolute;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+        .piece:hover { transform: translate(-50%, -50%) scale(1.1); }
+        .piece.selected {
+            transform: translate(-50%, -50%) scale(1.15);
+            box-shadow: 0 0 20px rgba(255,255,255,0.5);
+        }
+        .piece.red {
+            background: linear-gradient(145deg, #ff6b6b, #c0392b);
+            border: 3px solid #e74c3c;
+            color: #fff;
+        }
+        .piece.bandit {
+            background: linear-gradient(145deg, #555, #333);
+            border: 3px solid #666;
+            color: #fff;
+        }
+        .valid-move {
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            background: rgba(46, 204, 113, 0.7);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            cursor: pointer;
+            animation: pulse 1s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.6; }
+            50% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
+        }
+        .controls {
+            display: flex;
+            gap: 10px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 14px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            background: #e94560;
+            color: #fff;
+            transition: all 0.2s;
+        }
+        button:hover { background: #ff6b6b; transform: translateY(-2px); }
+        button:disabled { background: #555; cursor: not-allowed; transform: none; }
+        
+        /* 布局选择面板 */
+        .setup-panel {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.8);
+            z-index: 200;
+            justify-content: center;
+            align-items: center;
+        }
+        .setup-panel.show { display: flex; }
+        .setup-box {
+            background: #2d2d44;
+            padding: 25px;
+            border-radius: 15px;
+            text-align: center;
+            max-width: 350px;
+        }
+        .setup-box h2 { color: #e94560; margin-bottom: 15px; font-size: 20px; }
+        .setup-box p { color: #a0a0a0; margin-bottom: 15px; font-size: 13px; }
+        .setup-positions {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin: 20px 0;
+        }
+        .setup-pos {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            border: 3px solid #555;
+            background: #1a1a2e;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            color: #666;
+            transition: all 0.2s;
+        }
+        .setup-pos:hover { border-color: #888; }
+        .setup-pos.selected {
+            background: linear-gradient(145deg, #ff6b6b, #c0392b);
+            border-color: #e74c3c;
+            color: #fff;
+        }
+        .setup-btns { display: flex; gap: 10px; justify-content: center; margin-top: 15px; }
+        .setup-btns button { padding: 8px 16px; font-size: 13px; }
+        .btn-secondary { background: #555 !important; }
+        .btn-secondary:hover { background: #666 !important; }
+        
+        /* 胜利结算画面 */
+        .victory-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.85);
+            z-index: 300;
+            justify-content: center;
+            align-items: center;
+        }
+        .victory-overlay.show { display: flex; }
+        .victory-box {
+            background: linear-gradient(145deg, #2d2d44, #1a1a2e);
+            padding: 40px 50px;
+            border-radius: 20px;
+            text-align: center;
+            animation: victoryPop 0.5s ease;
+        }
+        @keyframes victoryPop {
+            0% { transform: scale(0.5); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .victory-icon { font-size: 64px; margin-bottom: 15px; }
+        .victory-title { font-size: 28px; font-weight: bold; margin-bottom: 10px; }
+        .victory-title.red-win { color: #e74c3c; }
+        .victory-title.bandit-win { color: #888; }
+        .victory-sub { color: #a0a0a0; margin-bottom: 25px; font-size: 14px; }
+        .victory-box button { padding: 12px 30px; font-size: 16px; }
+    </style>
+</head>
+<body>
+    <!-- 规则展开栏 -->
+    <div class="rules-toggle">
+        <button class="rules-btn">📜 规则</button>
+        <div class="rules-content">
+            <p><b>红军</b>：3枚，可移动一步，可攻击</p>
+            <p><b>土匪</b>：15枚，只能移动，不能攻击</p>
+            <p><b>吃子</b>：红军与土匪间隔一空位时可吃</p>
+            <p><b>红军胜</b>：消灭全部土匪</p>
+            <p><b>土匪胜</b>：包围红军使其无路可走</p>
+        </div>
+    </div>
+
+    <h1>🎮 红军土匪棋</h1>
+    <p class="info">湖北地区经典民间棋类游戏</p>
+    
+    <div class="game-container">
+        <div class="turn-indicator">
+            <div class="turn-icon red-icon active" id="redIcon">⭐</div>
+            <div class="status" id="status">红军回合</div>
+            <div class="turn-icon bandit-icon" id="banditIcon">💀</div>
+        </div>
+        <div class="board" id="board">
+            <canvas id="boardCanvas" width="320" height="320"></canvas>
+        </div>
+        <div class="controls">
+            <button onclick="undoMove()">悔棋</button>
+            <button onclick="resetGame()">重新开始</button>
+        </div>
+    </div>
+
+    <!-- 布局选择面板 -->
+    <div class="setup-panel" id="setupPanel">
+        <div class="setup-box">
+            <h2>🎯 红军布阵</h2>
+            <p>点击选择3个位置放置红军棋子<br>或直接开始使用默认布局</p>
+            <div class="setup-positions" id="setupPositions">
+                <div class="setup-pos" data-pos="20">1</div>
+                <div class="setup-pos" data-pos="21">2</div>
+                <div class="setup-pos" data-pos="22">3</div>
+                <div class="setup-pos" data-pos="23">4</div>
+                <div class="setup-pos" data-pos="24">5</div>
+            </div>
+            <p id="setupHint" style="color:#e94560;">已选: 0/3</p>
+            <div class="setup-btns">
+                <button class="btn-secondary" onclick="skipSetup()">使用默认</button>
+                <button onclick="confirmSetup()" id="confirmBtn" disabled>确认布阵</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 胜利结算画面 -->
+    <div class="victory-overlay" id="victoryOverlay">
+        <div class="victory-box">
+            <div class="victory-icon" id="victoryIcon">🎉</div>
+            <div class="victory-title" id="victoryTitle">红军胜利！</div>
+            <div class="victory-sub" id="victorySub">成功消灭所有土匪</div>
+            <button onclick="closeVictoryAndReset()">再来一局</button>
+        </div>
+    </div>
+
+    <script src="game.js"></script>
+</body>
+</html>
