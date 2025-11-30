@@ -63,6 +63,16 @@
         <div id="mainMenu">
             <button class="lobby-btn btn-red" onclick="showCreateRoom()">创建房间</button>
             <button class="lobby-btn btn-gray" onclick="showJoinRoom()">加入房间</button>
+            <button class="lobby-btn btn-gray" onclick="showRoomList()">房间列表</button>
+        </div>
+        
+        <div id="roomListPanel" class="hidden">
+            <h2>公开房间</h2>
+            <div class="room-list" id="roomList">
+                <p class="no-rooms">暂无可加入的房间</p>
+            </div>
+            <button class="lobby-btn btn-gray" onclick="refreshRoomList()">刷新</button>
+            <button class="lobby-btn btn-gray" onclick="backToMenu()">返回</button>
         </div>
         
         <div id="createRoomPanel" class="hidden">
@@ -119,6 +129,13 @@
     <div id="gameScreen" class="hidden">
         <div class="game-header">
             <div class="room-badge">房间: <span id="gameRoomId"></span></div>
+            <div class="spectator-count-badge" id="spectatorCountBadge">
+                观战👁: <span id="spectatorCount">0</span>
+                <div class="spectator-emoji-container" id="spectatorEmojiContainer"></div>
+            </div>
+            <div class="spectator-badge" id="spectatorBadge">
+                <span>👁 观战中</span>
+            </div>
             <div class="my-faction" id="myFactionDisplay"></div>
         </div>
         

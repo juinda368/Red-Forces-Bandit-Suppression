@@ -18,8 +18,31 @@ function generateRoomId() {
     return Math.random().toString(36).substring(2, 8).toUpperCase();
 }
 
+// 获取公开房间列表（包括进行中的游戏，供观战）
+function getPublicRooms() {
+    const list = [];
+    rooms.forEach((room, id) => {
+        const canJoin = room.players.length < 2;
+        const isPlaying = room.gameState && !room.gameState.gameOver;
+        list.push({
+            id,
+            playerCount: room.players.length,
+            spectatorCount: room.spectators ? room.spectators.length : 0,
+            faction: room.players[0]?.faction,
+            canJoin,
+            isPlaying
+        });
+    });
+    return list;
+}
+
 io.on('connection', (socket) => {
     console.log('用户连接:', socket.id);
+    
+    // 获取房间列表
+    socket.on('getRoomList', () => {
+        socket.emit('roomList', getPublicRooms());
+    });
     
     // 创建房间
     socket.on('createRoom', ({ faction, customRoomId }) => {
@@ -34,6 +57,7 @@ io.on('connection', (socket) => {
         rooms.set(roomId, {
             id: roomId,
             players: [{ id: socket.id, faction, ready: false }],
+            spectators: [],
             gameState: null,
             history: [],
             undoRequest: null
@@ -66,10 +90,42 @@ io.on('connection', (socket) => {
         socket.join(roomId);
         socket.roomId = roomId;
         socket.faction = faction;
+        socket.isSpectator = false;
         
         socket.emit('roomJoined', { roomId, faction });
         io.to(roomId).emit('playerJoined', { players: room.players });
+        // 通知观众玩家数量变化
+        io.to(roomId).emit('spectatorUpdate', { count: room.spectators.length });
         console.log(`玩家加入房间 ${roomId}，${faction} 方`);
+    });
+    
+    // 观战房间
+    socket.on('spectateRoom', (roomId) => {
+        const room = rooms.get(roomId);
+        if (!room) {
+            socket.emit('error', '房间不存在');
+            return;
+        }
+        
+        room.spectators.push(socket.id);
+        socket.join(roomId);
+        socket.roomId = roomId;
+        socket.isSpectator = true;
+        
+        socket.emit('spectateJoined', {
+            roomId,
+            gameState: room.gameState,
+            players: room.players,
+            spectatorCount: room.spectators.length
+        });
+        io.to(roomId).emit('spectatorUpdate', { count: room.spectators.length });
+        console.log(`观众加入房间 ${roomId}`);
+    });
+    
+    // 观众发送表情
+    socket.on('spectatorEmoji', (emoji) => {
+        if (!socket.isSpectator) return;
+        io.to(socket.roomId).emit('spectatorEmojiReceived', { emoji });
     });
     
     // 玩家准备/选择布局完成
@@ -100,6 +156,11 @@ io.on('connection', (socket) => {
         } else {
             io.to(socket.roomId).emit('waitingOpponent');
         }
+    });
+    
+    // 选中棋子 - 转发给对方
+    socket.on('pieceSelected', (data) => {
+        socket.to(socket.roomId).emit('opponentPieceSelected', data);
     });
     
     // 移动棋子
@@ -218,13 +279,15 @@ io.on('connection', (socket) => {
         const room = rooms.get(socket.roomId);
         if (!room || !room.drawRequest) return;
         
+        const requesterId = room.drawRequest;
         if (accepted) {
             room.gameState.gameOver = true;
             room.gameState.winner = 'draw';
             io.to(socket.roomId).emit('gameUpdate', room.gameState);
             io.to(socket.roomId).emit('gameOver', 'draw');
         } else {
-            io.to(socket.roomId).emit('drawRejected');
+            io.to(requesterId).emit('drawRejected');
+            socket.emit('drawRejectedByMe');
         }
         room.drawRequest = null;
     });
@@ -271,6 +334,7 @@ io.on('connection', (socket) => {
         const room = rooms.get(socket.roomId);
         if (!room || !room.swapRequest) return;
         
+        const requesterId = room.swapRequest;
         if (accepted) {
             // 交换双方阵营
             room.players.forEach(p => {
@@ -289,7 +353,8 @@ io.on('connection', (socket) => {
             }
             io.to(socket.roomId).emit('swapAccepted');
         } else {
-            io.to(socket.roomId).emit('swapRejected');
+            io.to(requesterId).emit('swapRejected');
+            socket.emit('swapRejectedByMe');
         }
         room.swapRequest = null;
     });
@@ -311,15 +376,32 @@ function handleLeave(socket) {
     
     const room = rooms.get(socket.roomId);
     if (room) {
-        room.players = room.players.filter(p => p.id !== socket.id);
-        if (room.players.length === 0) {
-            rooms.delete(socket.roomId);
+        if (socket.isSpectator) {
+            room.spectators = room.spectators.filter(id => id !== socket.id);
+            io.to(socket.roomId).emit('spectatorUpdate', { count: room.spectators.length });
         } else {
-            io.to(socket.roomId).emit('opponentLeft');
+            room.players = room.players.filter(p => p.id !== socket.id);
+            if (room.players.length === 0 && room.spectators.length === 0) {
+                rooms.delete(socket.roomId);
+            } else if (room.players.length === 0) {
+                // 玩家都走了，踢出观众
+                room.spectators.forEach(specId => {
+                    const specSocket = io.sockets.sockets.get(specId);
+                    if (specSocket) {
+                        specSocket.emit('roomClosed');
+                        specSocket.leave(socket.roomId);
+                        specSocket.roomId = null;
+                    }
+                });
+                rooms.delete(socket.roomId);
+            } else {
+                io.to(socket.roomId).emit('opponentLeft');
+            }
         }
     }
     socket.leave(socket.roomId);
     socket.roomId = null;
+    socket.isSpectator = false;
 }
 
 const PORT = process.env.PORT || 3000;

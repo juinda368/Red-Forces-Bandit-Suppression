@@ -88,7 +88,14 @@
 .piece.selected { transform: translate(-50%, -50%) scale(1.15); box-shadow: 0 0 20px rgba(255,255,255,0.5); }
 .piece.red { background: linear-gradient(145deg, #ff6b6b, #c0392b); border: 3px solid #e74c3c; color: #fff; }
 .piece.bandit { background: linear-gradient(145deg, #555, #333); border: 3px solid #666; color: #fff; }
-.piece.disabled { cursor: not-allowed; opacity: 0.6; }
+.piece.disabled { cursor: not-allowed; }
+.piece.inactive { opacity: 0.9; filter: brightness(0.9); }
+.piece.active-turn { opacity: 1; filter: brightness(1.2); }
+.piece.opponent-selected { box-shadow: 0 0 15px rgba(255, 215, 0, 0.8); animation: opponentSelect 1s infinite; }
+@keyframes opponentSelect {
+    0%, 100% { box-shadow: 0 0 10px rgba(255, 215, 0, 0.6); }
+    50% { box-shadow: 0 0 20px rgba(255, 215, 0, 1); }
+}
 
 .valid-move {
     position: absolute; width: 24px; height: 24px;
@@ -220,3 +227,129 @@
     .game-main { flex-direction: column; align-items: center; padding-left: 0; }
     .chat-box { width: 320px; height: 300px; }
 }
+
+
+/* 房间列表 */
+.room-list {
+    max-height: 300px;
+    overflow-y: auto;
+    margin: 15px 0;
+}
+.room-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 15px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 8px;
+    margin-bottom: 8px;
+}
+.room-item:hover { background: rgba(255,255,255,0.1); }
+.room-item-info { text-align: left; }
+.room-item-id { font-weight: bold; color: #e94560; }
+.room-item-status { font-size: 12px; color: #888; margin-top: 3px; }
+.room-item-btns { display: flex; gap: 8px; }
+.room-item-btns button {
+    padding: 6px 12px;
+    font-size: 12px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+.btn-join { background: #e94560; color: #fff; }
+.btn-spectate { background: #555; color: #fff; }
+.no-rooms { color: #666; text-align: center; padding: 30px; }
+
+/* 观战人数标签 */
+.spectator-count-badge {
+    position: relative;
+    background: rgba(255,255,255,0.1);
+    padding: 8px 15px;
+    border-radius: 20px;
+    font-size: 14px;
+    color: #aaa;
+}
+.spectator-count-badge span { color: #ffd700; font-weight: bold; }
+.spectator-emoji-container {
+    position: absolute;
+    left: 100%;
+    top: 50%;
+    transform: translateY(-50%);
+    margin-left: 10px;
+    width: 200px;
+    height: 60px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+.spectator-emoji-float {
+    font-size: 45px;
+    line-height: 1;
+    flex-shrink: 0;
+    animation: spectatorEmojiFloatUp 2s ease-out forwards;
+}
+@keyframes spectatorEmojiFloatUp {
+    0% { opacity: 1; transform: translateY(0); }
+    100% { opacity: 0; transform: translateY(-60px); }
+}
+
+/* 观战中标签（观众自己看到的） */
+.spectator-badge {
+    display: none;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255,215,0,0.2);
+    padding: 8px 15px;
+    border-radius: 20px;
+    font-size: 14px;
+    color: #ffd700;
+}
+.spectator-badge.show { display: flex; }
+
+/* 棋子移动动画 */
+.piece.moving {
+    transition: left 0.3s ease, top 0.3s ease;
+}
+
+/* 观众面板 */
+.spectator-panel {
+    width: 280px;
+    background: #2d2d44;
+    border-radius: 10px;
+    padding: 20px;
+    text-align: center;
+}
+.spectator-panel-header {
+    font-size: 18px;
+    font-weight: bold;
+    color: #ffd700;
+    margin-bottom: 10px;
+}
+.spectator-panel-info {
+    color: #888;
+    font-size: 14px;
+    margin-bottom: 20px;
+}
+.spectator-emoji-bar {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    padding: 15px;
+    background: rgba(255,215,0,0.1);
+    border-radius: 8px;
+}
+.spectator-emoji-bar .emoji-btn { font-size: 28px; }
+.spectator-leave-btn {
+    margin-top: 20px;
+    padding: 10px 20px;
+    background: #555;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background 0.2s;
+}
+.spectator-leave-btn:hover { background: #666; }
+.spectator-emoji-bar .emoji-btn { font-size: 24px; }
