@@ -89,12 +89,18 @@
 .piece.red { background: linear-gradient(145deg, #ff6b6b, #c0392b); border: 3px solid #e74c3c; color: #fff; }
 .piece.bandit { background: linear-gradient(145deg, #555, #333); border: 3px solid #666; color: #fff; }
 .piece.disabled { cursor: not-allowed; }
-.piece.inactive { opacity: 0.9; filter: brightness(0.9); }
+.piece.inactive { opacity: 0.8; filter: brightness(0.9); }
 .piece.active-turn { opacity: 1; filter: brightness(1.2); }
 .piece.opponent-selected { box-shadow: 0 0 15px rgba(255, 215, 0, 0.8); animation: opponentSelect 1s infinite; }
 @keyframes opponentSelect {
     0%, 100% { box-shadow: 0 0 10px rgba(255, 215, 0, 0.6); }
     50% { box-shadow: 0 0 20px rgba(255, 215, 0, 1); }
+}
+/* 上一步棋光晕效果 */
+.piece.last-move { box-shadow: 0 0 18px rgba(0, 255, 136, 0.9); animation: lastMoveGlow 1.5s infinite; }
+@keyframes lastMoveGlow {
+    0%, 100% { box-shadow: 0 0 12px rgba(0, 255, 136, 0.7); }
+    50% { box-shadow: 0 0 22px rgba(0, 255, 136, 1); }
 }
 
 .valid-move {

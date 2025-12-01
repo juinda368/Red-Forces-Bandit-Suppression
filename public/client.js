@@ -16,6 +16,7 @@ let opponentSelectedPiece = null; // 对方选中的棋子
 let validMoves = [];
 let setupPositions = [];
 let isSpectator = false;
+let lastMovePos = null; // 上一步棋的目标位置
 const connections = [];
 
 // 音效系统（单例，防重叠）
@@ -420,6 +421,7 @@ socket.on('gameStart', (state) => {
     selectedPiece = null;
     opponentSelectedPiece = null;
     validMoves = [];
+    lastMovePos = null; // 重置上一步位置
     updateStatus();
     renderPieces();
 });
@@ -500,6 +502,9 @@ function animateMove(prevState, newState, callback) {
         return;
     }
     
+    // 记录上一步位置（用于光晕显示）
+    setLastMovePos(toPos);
+    
     isAnimating = true;
     
     // 播放音效
@@ -536,6 +541,11 @@ function animateMove(prevState, newState, callback) {
         isAnimating = false;
         callback();
     }
+}
+
+// 记录上一步棋位置（用于光晕显示）
+function setLastMovePos(toPos) {
+    lastMovePos = toPos;
 }
 
 // 对方选中棋子
@@ -690,12 +700,15 @@ function renderPieces() {
         const piece = document.createElement('div');
         const isSelected = selectedPiece?.type === 'red' && selectedPiece?.index === index;
         const isOpponentSelected = opponentSelectedPiece?.type === 'red' && opponentSelectedPiece?.index === index;
+        const isLastMove = lastMovePos === pos;
         piece.className = 'piece red' + (isSelected ? ' selected' : '');
         if (myFaction !== 'red' || !isMyTurn) piece.classList.add('disabled');
         // 轮到红方时红棋更亮，否则变暗
         piece.classList.add(currentTurn === 'red' ? 'active-turn' : 'inactive');
         // 对方选中效果
         if (isOpponentSelected) piece.classList.add('opponent-selected');
+        // 上一步棋光晕
+        if (isLastMove) piece.classList.add('last-move');
         piece.style.left = coord.x + 'px';
         piece.style.top = coord.y + 'px';
         piece.textContent = '红';
@@ -708,12 +721,15 @@ function renderPieces() {
         const piece = document.createElement('div');
         const isSelected = selectedPiece?.type === 'bandit' && selectedPiece?.index === index;
         const isOpponentSelected = opponentSelectedPiece?.type === 'bandit' && opponentSelectedPiece?.index === index;
+        const isLastMove = lastMovePos === pos;
         piece.className = 'piece bandit' + (isSelected ? ' selected' : '');
         if (myFaction !== 'bandit' || !isMyTurn) piece.classList.add('disabled');
         // 轮到匪方时匪棋更亮，否则变暗
         piece.classList.add(currentTurn === 'bandit' ? 'active-turn' : 'inactive');
         // 对方选中效果
         if (isOpponentSelected) piece.classList.add('opponent-selected');
+        // 上一步棋光晕
+        if (isLastMove) piece.classList.add('last-move');
         piece.style.left = coord.x + 'px';
         piece.style.top = coord.y + 'px';
         piece.textContent = '匪';

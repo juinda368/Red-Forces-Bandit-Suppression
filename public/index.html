@@ -52,9 +52,56 @@
         .room-id { font-size: 24px; font-weight: bold; color: #e94560; letter-spacing: 3px; }
         .waiting { color: #a0a0a0; margin-top: 10px; }
         .hidden { display: none !important; }
+        
+        /* 规则展开栏 */
+        .rules-toggle {
+            position: fixed;
+            top: 15px;
+            left: 15px;
+            z-index: 100;
+        }
+        .rules-btn {
+            background: rgba(233,69,96,0.9);
+            border: none;
+            color: #fff;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .rules-btn:hover { background: #ff6b6b; }
+        .rules-content {
+            display: none;
+            position: absolute;
+            top: 40px;
+            left: 0;
+            background: rgba(45,45,68,0.95);
+            padding: 12px;
+            border-radius: 8px;
+            width: 280px;
+            font-size: 12px;
+            line-height: 1.6;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+        }
+        .rules-toggle:hover .rules-content { display: block; }
+        .rules-content p { margin: 4px 0; }
+        .rules-content b { color: #e94560; }
+        
 </style>
 </head>
 <body>
+    <!-- 规则展开栏 -->
+    <div class="rules-toggle">
+        <button class="rules-btn">📜 规则</button>
+        <div class="rules-content">
+            <p><b>红军</b>：3枚，可移动一步，可攻击</p>
+            <p><b>土匪</b>：15枚，只能移动，不能攻击</p>
+            <p><b>吃子</b>：红军与土匪间隔一空位时可吃</p>
+            <p><b>红军胜</b>：消灭全部土匪</p>
+            <p><b>土匪胜</b>：包围红军使其无路可走</p>
+        </div>
+    </div>
+
     <!-- 大厅界面 -->
     <div id="lobbyScreen" class="lobby">
         <h1>🎮 红军土匪棋</h1>
@@ -64,6 +111,7 @@
             <button class="lobby-btn btn-red" onclick="showCreateRoom()">创建房间</button>
             <button class="lobby-btn btn-gray" onclick="showJoinRoom()">加入房间</button>
             <button class="lobby-btn btn-gray" onclick="showRoomList()">房间列表</button>
+            <button class="lobby-btn btn-gray" onclick="window.location.href='/game.html'" style="margin-top:20px;">🎮 单机模式</button>
         </div>
         
         <div id="roomListPanel" class="hidden">
